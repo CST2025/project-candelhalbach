@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Classification Task</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .instructions {
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2px;
+            margin: 10px auto;
+            max-width: fit-content;
+            justify-content: center;
+        }
+
+        .stimulus-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        .stimulus {
+            width: 150px;
+            height: 150px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        .stimulus:hover {
+            border-color: #007bff;
+        }
+
+        .progress {
+            width: 100%;
+            height: 20px;
+            background-color: #eee;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: #007bff;
+            transition: width 0.3s;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 25px;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .experimenter-input {
+            max-width: 500px;
+            margin: 50px auto;
+            background-color: #fafafa;
+            padding: 25px;
+            border-radius: 10px;
+        }
+
+        .message {
+            text-align: center;
+            max-width: 500px;
+            margin: 50px auto;
+            background-color: #fafafa;
+            padding: 25px;
+            border-radius: 10px;
+        }
+
+        .submessage {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" id="mainContainer">
+        <!-- Content will be injected here -->
+    </div>
+
+    <script>
+        class BriefRCTask {
+            constructor() {
+                this.currentTrial = 0;
+                this.totalTrials = 60;
+                this.phase = 'experimenter_input';
+                this.responses = [];
+                this.responseId = 'R' + Math.random().toString(36).substr(2, 9);
+                this.participantNumber = null;
+                this.icAgree = null;
+                this.container = document.getElementById('mainContainer');
+                this.currentTrialStimuli = [];
+
+                this.render();
+            }
+
+            // TODO: Make sure it functions online
+
+            showExperimenterInput() {
+                this.container.innerHTML = `
+                    <div class="experimenter-input">
+                        <h1>Experimenter Setup</h1>
+                        <form id="experimenterForm">
+                            <div>
+                                <label for="participantNumber">Participant Number:</label>
+                                <input 
+                                    type="text" 
+                                    id="participantNumber" 
+                                    required 
+                                    pattern="[0-9]+"
+                                    title="Please enter a valid number"
+                                >
+                            </div>
+                            <button type="submit">Continue to Instructions</button>
+                        </form>
+                    </div>
+                `;
+
+                document.getElementById('experimenterForm').onsubmit = (e) => {
+                    e.preventDefault();
+                    this.participantNumber = document.getElementById('participantNumber').value;
+                    this.phase = 'instructions';
+                    this.render();
+                };
+            }
+
+            showInstructions() {
+                this.container.innerHTML = `
+                    <div class="instructions">
+                        <h1>Face Classification Task Instructions</h1>
+                        <p>Welcome to the study! In this study we are investigating how people perceive certain traits based on facial appearance. In this task, you will:</p>
+                        <ul>
+                            <li>See 12 faces in each trial</li>
+                            <li>Select the face that looks the most like a "typical student"</li>
+                            <li>Complete 60 trials in total</li>
+                            <li>The task will take approximately 10-15 minutes</li>
+                        </ul>
+                        <p><strong>Important Information:</strong></p>
+                        <ul>
+                            <li>There are no right or wrong answers</li>
+                            <li>Trust your intuition when making selections</li>
+                            <li>Try to maintain focus throughout the task</li>
+                        </ul>
+                        <button onclick="task.startTask()">Begin Task</button>
+                    </div>
+                `;
+            }
+
+            startTask() {
+                this.phase = 'task';
+                this.render();
+            }
+
+            showTrial() {
+                const stimuli = this.generateTrialStimuli();
+                const progress = ((this.currentTrial + 1) / this.totalTrials) * 100;
+
+                this.container.innerHTML = `
+                    <div>
+                        <div class="progress">
+                            <div class="progress-bar" style="width: ${progress}%"></div>
+                        </div>
+                        <p>Trial ${this.currentTrial + 1} of ${this.totalTrials}</p>
+                        <h2>Select the face that looks the most like a Typical Student</h2>
+                        <div class="grid">
+                            ${stimuli.map(stim => `
+                                <div class="stimulus-container">
+                                    <img 
+                                        src="${stim.src}" 
+                                        class="stimulus"
+                                        onclick="task.handleSelection('${stim.filename}', '${stim.oppositeFilename}')"
+                                        alt="Face stimulus"
+                                    />
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+
+                this.currentTrialStimuli = stimuli;
+            }
+
+            handleSelection(filename, oppositeFilename) {
+                const imageNumber = filename.match(/\d+/)[0];
+                const imageType = filename.includes('Ori') ? 1 : -1;
+
+                const response = {
+                    participant_number: this.participantNumber,
+                    response_id: this.responseId,
+                    ic_agree: this.icAgree,
+                    trial: this.currentTrial + 1,
+                    selected_image: filename,
+                    image_number: imageNumber,
+                    image_type: imageType,
+                    timestamp: new Date().toISOString()
+                };
+
+                this.currentTrialStimuli.forEach((stim, index) => {
+                    response[`image_${index + 1}`] = stim.filename;
+                });
+
+                this.responses.push(response);
+
+                if (this.currentTrial < this.totalTrials - 1) {
+                    this.currentTrial++;
+                    this.showTrial();
+                } else {
+                    this.phase = 'complete';
+                    this.exportCompleteData(); // Call to export complete data
+                    this.render();
+                }
+            }
+
+            generateTrialStimuli() {
+                let stimuli = [];
+                for (let i = 1; i <= 12; i++) {
+                    const filename = `images/faceInv${i}s.png`;
+                    const oppositeFilename = `images/faceOri${i}s.png`;
+                    stimuli.push({
+                        src: filename,
+                        filename: filename,
+                        oppositeFilename: oppositeFilename
+                    });
+                }
+                stimuli = stimuli.sort(()=> Math.random() - 0.5);
+                return stimuli;
+            }
+
+            // Method to export complete data
+            exportCompleteData() {
+                const headers = [
+                    "participant_number", 
+                    "trial", 
+                    "selected_image",
+                    "timestamp"
+                ];
+
+                // TODO: Limit output to participant number and selected image per trial and hyperlink
+
+                const rows = this.responses.map(response => {
+                    return [
+                        response.participant_number,
+                        response.trial,
+                        response.selected_image,
+                        response.timestamp
+                    ].join(',');
+                });
+
+                const csvContent = [headers.join(','), ...rows].join('\n');
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `pnr_${this.participantNumber}_complete_data_${this.responseId}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            // TODO: Add a ""
+
+            render() {
+                if (this.phase === 'experimenter_input') {
+                    this.showExperimenterInput();
+                } else if (this.phase === 'instructions') {
+                    this.showInstructions();
+                } else if (this.phase === 'task') {
+                    this.showTrial();
+                } else if (this.phase === 'complete') {
+                    this.container.innerHTML = `
+                        <div class="message">
+                            <h2>Thank you for completing the study!</h2>
+                            <p>Your data has been saved.</p>
+                            <p class="submessage">You can now return to the questionnaire!<p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        const task = new BriefRCTask();
+    </script>
+</body>
+
+</html>
